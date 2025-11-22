@@ -1,0 +1,7 @@
+[project]
+name = "bees-test-case"
+version = "0.1.0"
+description = "Source code for the data pipeline processing brewery data"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = []
