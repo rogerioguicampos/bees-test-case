@@ -42,9 +42,25 @@ def silver_layer():
     delete_partition_recursively(partition_path=f'data/silver/date_request={string_date}')
     df.to_parquet(path='data/silver/', partition_cols=['date_request', 'country'])
 
-# def gold_layer():
-#     pass
+
+def gold_layer(list_agg: list=['brewery_type', 'country', 'state_province']):
+    df = pd.read_parquet('data/silver/')[list_agg]
+
+    df_agg = (
+        df
+        .groupby(by=list_agg, observed=False)
+        .size()
+        .reset_index()
+        .rename(columns={0: 'count'})
+    )
+
+    df_agg['date_request'] = string_date
+
+    delete_partition_recursively(partition_path=f'data/gold/date_request={string_date}')
+    df_agg.to_parquet(path='data/gold/', partition_cols=['date_request'])
+
 
 if __name__ == "__main__":
     bronze_layer()
     silver_layer()
+    gold_layer()
