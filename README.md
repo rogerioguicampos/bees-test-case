@@ -1,4 +1,4 @@
-# Bees Test Case
+# Bees Test Case Instructions
 
 ## Objective
 
@@ -13,6 +13,7 @@ The goal of this test is to assess your skills in consuming data from an API, tr
 5. **Data Lake Architecture:** Your data lake must follow the medallion architecture having a bronze, silver, and gold layer:
   1. **Bronze Layer:** Persist the raw data from the API in its native format or any format you find suitable.
   2. **Silver Layer:** Transform the data to a columnar storage format such as parquet or delta, and partition it by brewery location. Please explain any other transformations you perform.
+    1. The data is very skewed and small. There is no reason to partition. I'm doing this just because it was asked
   3. **Gold Layer:** Create an aggregated view with the quantity of breweries per type and location.
 6. **Monitoring/Alerting:** Describe how you would implement a monitoring and alerting process for this pipeline. Consider data quality issues, pipeline failures, and other potential problems in your response.
 7. **Repository:** Create a public repository on GitHub with your solution. Document your design choices, trade-offs, and provide clear instructions on how to run your application.
