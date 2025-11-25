@@ -44,52 +44,87 @@ While tools like **Airflow** or **Mage** are powerful for complex dependencies, 
 
 ## 🚀 How to Run
 
-This project utilizes **Docker** to ensure a reproducible environment.
+This project includes a **Makefile** to automate setup, execution, testing, and Docker operations. This ensures a consistent developer experience across different environments (Linux/Arch, Mac, etc.).
 
 ### Prerequisites
-* Docker installed on your machine.
 
-### 1. Build the Docker Image
-Build the image containing the environment, dependencies, and the application code:
+* **Docker** installed and running. 
+* **Make** (usually installed by default on Linux/Mac). 
+* **Python 3.9+** (The project handles version management via `uv`).
 
-```bash
-docker build -t bees-pipeline .
-```
+### 1. Quick Start (Makefile)
 
-### Execution Modes
-
-You can run the pipeline in two ways: Manual (for immediate results) or Orchestrated (simulating production).
-
-#### Option A: Manual Trigger (Immediate Execution)
-
-Use this command to run the ETL process immediately. We use a volume (-v) mapping so the data generated inside the container appears in your local data/ folder.
+To see all available commands, simply run:
 
 ```bash
-# Creates a local 'data' folder and runs the script inside the container
-docker run --rm -v $(pwd)/data:/app/data bees-pipeline python main.py
+make help
 ```
 
-*After running this, check the newly created data/ folder in your project root to verify the Bronze, Silver, and Gold layers.*
+### 2. Local Development Environment
 
-#### Option B: Orchestrated Mode (Scheduled via Cron)
+We use `uv` for fast dependency management and virtual environment creation.
 
-To run the container in the background with the internal **Cron** scheduler active (configured to run at **06:00 AM daily**):
+- **Setup Environment:** Installs `uv`, creates a Python 3.9 virtual environment, and installs dependencies.
 
 ```bash
-docker run -d --name bees-etl -v $(pwd)/data:/app/data bees-pipeline
+make setup
 ```
 
-To view the execution logs in this mode:
+* **Run Pipeline Locally:** Executes `main.py` using the isolated environment.
 
 ```bash
-docker exec bees-etl tail -f /var/log/cron.log
+make run
 ```
 
-> [!WARNING]
+* **Run Tests:** Executes unit tests using `pytest`.
+
+```bash
+make test
+```
+
+### 3. Docker Execution (Production Simulation)
+
+* **Build Image:** Builds the Docker image `bees-pipeline`.
+
+```bash
+make docker-build
+```
+
+* **Manual Execution (One-off):** Runs the pipeline inside the container and **automatically fixes file permissions** so you can edit the generated `data/` files on your host machine.
+
+```bash
+make docker-run
+```
+
+* **Orchestrated Execution (Cron Scheduler):** Runs the container in the background with the internal Cron scheduler active (06:00 AM daily).
+
+```bash
+make docker-up
+```
+
+* **View Logs:** Follows the logs of the background Cron container.
+
+```bash
+make docker-logs
+```
+
+* **Debug Shell:** Opens a `bash` terminal inside the container with volume mounting, allowing you to debug code inside the Docker environment.
+
+```bash
+make docker-shell
+```
+
+#### 4. Maintenance
+
+To clean up generated data, logs, caches (`__pycache__`, `.pytest_cache`), and the virtual environment:
+
+```bash
+make clean
+```
+
+> [!NOTE]
 >
-> **Note for Windows Users:** If running via PowerShell, replace ```$(pwd)``` with ```${PWD}``` in the docker commands. Ensure line endings for shell scripts (.sh) are set to LF, not CRLF.
-
-
+> This command automatically detects if files were created by Docker (Root user) and uses `sudo` if necessary to remove them properly.
 
 ------
 
