@@ -5,10 +5,12 @@ PYTHON = $(VENV)/bin/python
 PIP = $(VENV)/bin/pip
 PYTEST = $(VENV)/bin/pytest
 
-# Detect OS to handle volume mounting (Linux/Mac vs Windows)
+# Detect OS variables
 PWD := $(shell pwd)
+USER_ID = $(shell id -u)
+GROUP_ID = $(shell id -g)
 
-.PHONY: help setup clean run test docker-build docker-run docker-shell docker-up docker-logs format
+.PHONY: help setup clean run test docker-build docker-run docker-shell docker-up docker-logs format fix-permissions
 
 # --- DEFAULT GOAL ---
 help: ## Shows this help message
@@ -34,23 +36,28 @@ test: ## Runs unit tests locally
 	@echo "Running tests..."
 	@$(PYTEST) tests/ -v
 
-clean: ## Cleans up generated data, cache and venv
+clean: ## Cleans up generated data, cache and venv (Uses sudo if needed)
 	@echo "Cleaning up..."
-	@rm -rf data/ logs/
-	@rm -rf .venv
-	@rm -rf .pytest_cache
-	@rm -rf __pycache__
+	@rm -rf .venv .pytest_cache __pycache__
 	@find . -type d -name "__pycache__" -exec rm -rf {} +
+	@# Tries to remove data/ normally; if it fails due to root permissions, uses sudo
+	@rm -rf data/ logs/ || (echo "Root files detected. Using sudo to clean..." && sudo rm -rf data/ logs/)
 	@echo "Cleaned."
+
+fix-permissions: ## Fixes ownership of data/ folder (Root -> Current User)
+	@echo "Fixing permissions..."
+	@sudo chown -R $(USER_ID):$(GROUP_ID) data/ logs/
+	@echo "Files are now owned by current user."
 
 # --- DOCKER OPERATIONS ---
 docker-build: ## Builds the Docker image
 	@echo "Building Docker image..."
 	@docker build -t $(IMAGE_NAME) .
 
-docker-run: ## Runs the pipeline inside Docker (manual trigger)
+docker-run: ## Runs the pipeline inside Docker and fixes output permissions
 	@echo "Running pipeline in Docker..."
 	@docker run --rm -v $(PWD)/data:/app/data $(IMAGE_NAME) python main.py
+	@make fix-permissions
 
 docker-shell: ## Opens a bash shell inside the container (Bind Mount for Dev)
 	@echo "Entering Docker Dev Shell..."
