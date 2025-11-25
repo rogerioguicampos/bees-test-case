@@ -148,11 +148,17 @@ In a production environment (e.g., AWS/Azure), the following strategy would be i
 
 ```tex
 .
-├── data/                 # Generated locally when running with volumes
+├── data/                 # Data Lake storage (Generated locally via volumes)
+│   ├── bronze/           # Raw data partitioned by date
+│   ├── silver/           # Cleaned data partitioned by country
+│   └── gold/             # Aggregated metrics
+├── logs/                 # Execution logs (persisted from Docker)
 ├── tests/
 │   └── test_pipeline.py  # Unit tests
-├── Dockerfile            # Container configuration
-├── main.py               # ETL Pipeline code
-├── README.md             # Documentation
+├── .python-version       # Python version specification for uv
+├── Dockerfile            # Container definition
+├── Makefile              # Automation commands (Setup, Run, Test, Docker)
+├── README.md             # Project documentation
+├── main.py               # ETL Pipeline source code
 └── requirements.txt      # Python dependencies
 ```
