@@ -126,16 +126,6 @@ make clean
 >
 > This command automatically detects if files were created by Docker (Root user) and uses `sudo` if necessary to remove them properly.
 
-------
-
-## 🧪 Testing
-
-Unit tests were implemented using `pytest` and `unittest.mock` to validate the logic without hitting the actual API endpoints.
-
-To run the tests inside the container:
-
-```bash
-docker run --rm bees-pipeline pytest tests/ -v
 ```
 
 ------
