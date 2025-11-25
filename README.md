@@ -126,8 +126,6 @@ make clean
 >
 > This command automatically detects if files were created by Docker (Root user) and uses `sudo` if necessary to remove them properly.
 
-```
-
 ------
 
 ## 📡 Monitoring & Alerting Plan
