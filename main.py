@@ -129,20 +129,37 @@ def bronze_layer(url: str = 'https://api.openbrewerydb.org/v1/breweries') -> Non
     Ingests raw data from the API into the Bronze layer (Raw).
     Adds a 'date_request' column for partitioning.
     """
+    t0 = time.time()
     logging.info("Starting Bronze Layer processing...")
-    raw_data = fetch_data_with_pagination(url)
+
+    try:
+        raw_data = fetch_data_with_pagination(url)
+    except Exception:
+        logging.error("Failed to fetch data from API.")
+        return
+
+    if not raw_data:
+        logging.warning("API returned 0 records. Aborting.")
+        return
 
     df = pd.DataFrame(raw_data)
     df['date_request'] = STRING_DATE
 
-    # Clean existing partition to ensure idempotency
-    delete_partition_recursively(partition_path=f'data/bronze/date_request={STRING_DATE}')
+    partition_dir = f'data/bronze/date_request={STRING_DATE}'
+
+    # --- Quality Gate Implementation ---
+    if not check_data_quality(df, partition_dir):
+        logging.error("Pipeline stopped at Bronze Layer due to Data Quality issues.")
+        return
+    # -----------------------------------
+
+    delete_partition_recursively(partition_path=partition_dir)
 
     output_path = 'data/bronze/'
     Path(output_path).mkdir(parents=True, exist_ok=True)
 
     df.to_parquet(path=output_path, partition_cols=['date_request'])
-    logging.info("Bronze Layer completed.")
+    logging.info(f"<<< BRONZE FINISHED: Ingested {len(df)} rows in {time.time() - t0:.2f}s")
 
 
 def silver_layer() -> None:
@@ -150,24 +167,33 @@ def silver_layer() -> None:
     Reads from Bronze, transforms data, and saves to Silver layer.
     Partitions by 'date_request' and 'country'.
     """
+    t0 = time.time()
     logging.info("Starting Silver Layer processing...")
+
     try:
         df = pd.read_parquet('data/bronze/')
     except Exception:
         logging.error("Bronze layer data not found. Run bronze_layer first.")
         return
 
+    initial_rows = len(df)
+
     # Ensure ID is string and clean whitespace
     df['id'] = df['id'].astype(str).str.strip()
 
-    # Clean existing partition
+    # Handle NaNs in text columns to prevent Parquet schema issues
+    text_cols = ['name', 'brewery_type', 'street', 'city', 'state_province', 'country']
+    for col in text_cols:
+        if col in df.columns:
+            df[col] = df[col].astype(str).replace('nan', '').replace('None', '')
+
     delete_partition_recursively(partition_path=f'data/silver/date_request={STRING_DATE}')
 
     output_path = 'data/silver/'
     Path(output_path).mkdir(parents=True, exist_ok=True)
 
     df.to_parquet(path=output_path, partition_cols=['date_request', 'country'])
-    logging.info("Silver Layer completed.")
+    logging.info(f"<<< SILVER FINISHED: Processed {initial_rows} rows in {time.time() - t0:.2f}s")
 
 
 def gold_layer(list_agg: list = ['brewery_type', 'country', 'state_province']) -> None:
@@ -177,7 +203,9 @@ def gold_layer(list_agg: list = ['brewery_type', 'country', 'state_province']) -
     Args:
         list_agg (list): Columns to group by.
     """
+    t0 = time.time()
     logging.info("Starting Gold Layer processing...")
+
     try:
         df = pd.read_parquet('data/silver/')
     except Exception:
@@ -203,10 +231,15 @@ def gold_layer(list_agg: list = ['brewery_type', 'country', 'state_province']) -
     Path(output_path).mkdir(parents=True, exist_ok=True)
 
     df_agg.to_parquet(path=output_path, partition_cols=['date_request'])
-    logging.info("Gold Layer completed.")
+    logging.info(f"<<< GOLD FINISHED: Created {len(df_agg)} aggregated rows in {time.time() - t0:.2f}s")
 
 
 if __name__ == "__main__":
+    total_start = time.time()
+    logging.info("PIPELINE EXECUTION STARTED")
+
     bronze_layer()
     silver_layer()
     gold_layer()
+
+    logging.info(f"PIPELINE COMPLETED in {time.time() - total_start:.2f}s"
