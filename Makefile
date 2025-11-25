@@ -63,8 +63,3 @@ docker-up: ## Runs the pipeline in background (Cron Schedule)
 
 docker-logs: ## Follows the logs of the background container
 	@docker exec -it bees-etl tail -f /var/log/cron.log
-
-format: ## Formats and lints code (using ruff)
-	@echo "Formatting code..."
-	@$(VENV)/bin/ruff format .
-	@$(VENV)/bin/ruff check . --fix
