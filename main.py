@@ -9,7 +9,7 @@ import sys
 
 
 logging.basicConfig(
-    level=logging.INFO, 
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - [%(funcName)s] - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout)
@@ -20,7 +20,6 @@ STRING_DATE = datetime.now().strftime('%Y_%m_%d')
 def delete_partition_recursively(partition_path: str = 'data/') -> None:
     """
     Recursively deletes a directory if it exists and contains .parquet files.
- 
     Args:
         partition_path (str): The path to the directory to be cleaned.
     """
@@ -46,16 +45,17 @@ def delete_partition_recursively(partition_path: str = 'data/') -> None:
 def fetch_data_with_pagination(base_url: str) -> list:
     """
     Fetches all data from the API handling pagination and basic retries.
-
     Args:
         base_url (str): The API endpoint URL.
-
     Returns:
         list: A list of dictionaries containing all records.
     """
+    start_fetch = time.time()
     all_data = []
     page = 1
     per_page = 200 # Max allowed
+
+    logging.info("Connecting to API...")
 
     while True:
         try:
@@ -77,8 +77,51 @@ def fetch_data_with_pagination(base_url: str) -> list:
             logging.error(f"Error fetching page {page}: {e}")
             raise e
 
-    logging.info(f"Total records fetched: {len(all_data)}")
+    elapsed = time.time() - start_fetch
+    logging.info(f"API Fetch complete: {len(all_data)} records in {elapsed:.2f}s")
     return all_data
+
+
+def check_data_quality(new_df: pd.DataFrame, partition_path: str, threshold: float = 0.0) -> bool:
+    """
+    Validates the new data volume against existing data (Quality Gate).
+    """
+    path = Path(partition_path)
+
+    # If no previous data exists, it's the first run. Pass.
+    if not path.exists():
+        logging.info("First run detected (no existing data). Quality Check Passed.")
+        return True
+
+    try:
+        # Read only one column to count rows quickly
+        existing_df = pd.read_parquet(path, columns=[new_df.columns[0]])
+        old_count = len(existing_df)
+        new_count = len(new_df)
+
+        logging.info(f"Quality Check | Old: {old_count} vs New: {new_count} rows")
+
+        if old_count == 0:
+            return True
+
+        # Case 1: Data Growth or Stable (Ideal scenario)
+        if new_count >= old_count:
+            logging.info("Data volume validated (Growth/Stable).")
+            return True
+
+        # Case 2: Data Shrinkage (Check Threshold)
+        diff_pct = (old_count - new_count) / old_count
+
+        if diff_pct <= threshold:
+            logging.warning(f"Volume drop {diff_pct:.1%} within limit ({threshold:.0%}). Accepted.")
+            return True
+        else:
+            logging.error(f"CRITICAL: Volume drop {diff_pct:.1%} exceeds limit. Blocked to prevent data loss.")
+            return False
+
+    except Exception as e:
+        logging.warning(f"Could not read existing data: {e}. Proceeding.")
+        return True
 
 
 def bronze_layer(url: str = 'https://api.openbrewerydb.org/v1/breweries') -> None:
