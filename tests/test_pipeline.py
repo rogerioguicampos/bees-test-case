@@ -22,7 +22,7 @@ def test_delete_partition_recursively(tmp_path):
     d.mkdir()
     p = d / "test.parquet"
     p.write_text("content")
-    
+
     delete_partition_recursively(str(d))
     assert not d.exists()
 
@@ -36,11 +36,11 @@ def test_bronze_layer(mock_to_parquet, mock_get):
 
     mock_response_2 = MagicMock()
     mock_response_2.json.return_value = []
-    
+
     mock_get.side_effect = [mock_response_1, mock_response_2]
 
     bronze_layer()
-    
+
     assert mock_get.call_count == 2
     mock_to_parquet.assert_called_once()
 
@@ -48,9 +48,9 @@ def test_bronze_layer(mock_to_parquet, mock_get):
 @patch('main.pd.DataFrame.to_parquet')
 def test_silver_layer(mock_to_parquet, mock_read, mock_parquet_read):
     mock_read.return_value = mock_parquet_read
-    
+
     silver_layer()
-    
+
     mock_read.assert_called()
     # Verify partitioning by country
     call_args = mock_to_parquet.call_args
@@ -60,9 +60,9 @@ def test_silver_layer(mock_to_parquet, mock_read, mock_parquet_read):
 @patch('main.pd.DataFrame.to_parquet')
 def test_gold_layer(mock_to_parquet, mock_read, mock_parquet_read):
     mock_read.return_value = mock_parquet_read
-    
+
     gold_layer()
-    
+
     # Check if aggregation happened (columns should be agg columns + count)
     saved_df = mock_to_parquet.call_args[0][0] # Get the dataframe passed to to_parquet
     assert 'count' in saved_df.columns

@@ -1,38 +1,87 @@
-# Bees Test Case Instructions
+# Bees Data Engineering Test Case
 
-## Objective
+This repository contains the solution for the Data Engineering test case. The project consists of a data pipeline that consumes data from the Open Brewery DB API, processes it through a **Medallion Architecture** (Bronze, Silver, Gold), and persists the results in a Data Lake using Parquet format.
 
-The goal of this test is to assess your skills in consuming data from an API, transforming and persisting it into a data lake following the medallion architecture with three layers: raw data, curated data partitioned by location, and an analytical aggregated layer.
+## 🛠️ Technologies Used
 
-## Instructions
+* **Language:** Python 3.9+
+* **Libraries:** Pandas, Requests, PyArrow, Pytest
+* **Containerization:** Docker
+* **Orchestration:** Cron (running inside Docker)
+* **Format:** Parquet (Columnar storage)
 
-1. **API:** Use the Open Brewery DB API to fetch data. The API has an endpoint for listing breweries: <https://www.openbrewerydb.org/>
-2. **Orchestration Tool:** Choose the orchestration tool of your preference (Airflow, Luigi, Mage etc.) to build a data pipeline. We're interested in seeing your ability to handle scheduling, retries, and error handling in the pipeline.
-3. **Language:** Use the language of your preference for the requests and data transformation. Please include test cases for your code. Python and PySpark are preferred but not mandatory.
-4. **Containerization:** If you use Docker or Kubernetes for modularization, you'll earn extra points.
-5. **Data Lake Architecture:** Your data lake must follow the medallion architecture having a bronze, silver, and gold layer:
-  1. **Bronze Layer:** Persist the raw data from the API in its native format or any format you find suitable.
-  2. **Silver Layer:** Transform the data to a columnar storage format such as parquet or delta, and partition it by brewery location. Please explain any other transformations you perform.
-    1. The data is very skewed and small. There is no reason to partition. I'm doing this just because it was asked
-  3. **Gold Layer:** Create an aggregated view with the quantity of breweries per type and location.
-6. **Monitoring/Alerting:** Describe how you would implement a monitoring and alerting process for this pipeline. Consider data quality issues, pipeline failures, and other potential problems in your response.
-7. **Repository:** Create a public repository on GitHub with your solution. Document your design choices, trade-offs, and provide clear instructions on how to run your application.
-8. **Cloud Services:** If your solution requires any cloud services, please provide instructions on how to set them up. Please do not post them in your public repository.
+---
 
-## Evaluation Criteria
+## 🏗️ Architecture & Design Choices
 
-Your solution will be evaluated based on the following criteria:
+### 1. Data Lake Architecture (Medallion)
+The pipeline follows the medallion architecture patterns to organize data quality and progression:
 
-1. Code Quality
-2. Solution Design
-3. Efficiency
-4. Completeness
-5. Documentation
-6. Error Handling
+* **Bronze Layer (Raw):**
+    * Ingests raw JSON data from the API.
+    * **Transformation:** Adds a `date_request` column for partitioning.
+    * **Storage:** Parquet, partitioned by extraction date.
+* **Silver Layer (Curated):**
+    * Reads from Bronze.
+    * **Transformation:** Cleans IDs (whitespace removal) and ensures schema consistency.
+    * **Storage:** Parquet, partitioned by `date_request` and `country` (as requested in the instructions to handle skew/partitioning logic).
+* **Gold Layer (Analytical):**
+    * Reads from Silver.
+    * **Transformation:** Aggregates data to count breweries per type, country, and state.
+    * **Storage:** Parquet, partitioned by `date_request`.
 
-## A few tips for the case
+### 2. Orchestration Strategy
+**Tool Chosen:** Docker + Cron.
 
-- Implement pagination in APIs and data partitioning to improve performance and scalability.
-- Create automated tests and validate data integrity before storage.
-- Choose a scalable architecture and implement robust error handling for resilience.
-- Follow Git best practices and maintain clear documentation for easier maintenance and evolution.
+**Trade-off Analysis:**
+While tools like **Airflow** or **Mage** are powerful for complex dependencies, they introduce significant overhead (databases, webservers, schedulers) for a single pipeline script.
+* **Decision:** I chose to wrap the Python script in a **Docker container managed by Cron**.
+* **Benefit:** This satisfies the requirement for scheduling and containerization while keeping the solution lightweight, portable, and easy to review without setting up a complex environment.
+
+---
+
+## 🚀 How to Run
+
+This project utilizes **Docker** to ensure a reproducible environment.
+
+### Prerequisites
+* Docker installed on your machine.
+
+### 1. Build the Docker Image
+Build the image containing the environment, dependencies, and the application code:
+
+```bash
+docker build -t bees-pipeline .
+```
+
+### Execution Modes
+
+You can run the pipeline in two ways: Manual (for immediate results) or Orchestrated (simulating production).
+
+#### Option A: Manual Trigger (Immediate Execution)
+
+Use this command to run the ETL process immediately. We use a volume (-v) mapping so the data generated inside the container appears in your local data/ folder.
+
+```bash
+# Creates a local 'data' folder and runs the script inside the container
+docker run --rm -v $(pwd)/data:/app/data bees-pipeline python main.py
+```
+
+*After running this, check the newly created data/ folder in your project root to verify the Bronze, Silver, and Gold layers.*
+
+#### Option B: Orchestrated Mode (Scheduled via Cron)
+
+To run the container in the background with the internal **Cron** scheduler active (configured to run at **06:00 AM daily**):
+
+```bash
+docker run -d --name bees-etl -v $(pwd)/data:/app/data bees-pipeline
+```
+
+To view the execution logs in this mode:
+
+```bash
+docker exec bees-etl tail -f /var/log/cron.log
+```
+
+
+
