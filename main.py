@@ -242,4 +242,4 @@ if __name__ == "__main__":
     silver_layer()
     gold_layer()
 
-    logging.info(f"PIPELINE COMPLETED in {time.time() - total_start:.2f}s"
+    logging.info(f"PIPELINE COMPLETED in {time.time() - total_start:.2f}s")
