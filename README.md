@@ -85,6 +85,7 @@ To view the execution logs in this mode:
 docker exec bees-etl tail -f /var/log/cron.log
 ```
 
+Note for Windows Users: If running via PowerShell, replace $(pwd) with ${PWD} in the docker commands. Ensure line endings for shell scripts (.sh) are set to LF, not CRLF.
 ------
 
 ## 🧪 Testing
