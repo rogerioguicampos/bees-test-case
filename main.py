@@ -5,9 +5,16 @@ from pathlib import Path
 import requests
 import shutil
 import time
+import sys
 
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - [%(funcName)s] - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 STRING_DATE = datetime.now().strftime('%Y_%m_%d')
 
 def delete_partition_recursively(partition_path: str = 'data/') -> None:
@@ -48,7 +55,7 @@ def fetch_data_with_pagination(base_url: str) -> list:
     """
     all_data = []
     page = 1
-    per_page = 200  # Max allowed
+    per_page = 200 # Max allowed
 
     while True:
         try:
