@@ -2,6 +2,8 @@
 
 This repository contains the solution for the Data Engineering test case. The project consists of a data pipeline that consumes data from the Open Brewery DB API, processes it through a **Medallion Architecture** (Bronze, Silver, Gold), and persists the results in a Data Lake using Parquet format.
 
+------
+
 ## 🛠️ Technologies Used
 
 * **Language:** Python 3.9+
@@ -83,5 +85,45 @@ To view the execution logs in this mode:
 docker exec bees-etl tail -f /var/log/cron.log
 ```
 
+------
 
+## 🧪 Testing
 
+Unit tests were implemented using `pytest` and `unittest.mock` to validate the logic without hitting the actual API endpoints.
+
+To run the tests inside the container:
+
+```bash
+docker run --rm bees-pipeline pytest tests/ -v
+```
+
+------
+
+## 📡 Monitoring & Alerting Plan
+
+In a production environment (e.g., AWS/Azure), the following strategy would be implemented to ensure reliability:
+
+1. **Pipeline Failures:**
+   - **Mechanism:** The entry point script matches the Python process exit code.
+   - **Alerting:** If `exit_code != 0`, a webhook is triggered to send a notification to **Slack** or **Email** (via AWS SNS or PagerDuty).
+2. **Logging:**
+   - **Current State:** Logs are directed to `stdout` and `/var/log/cron.log`.
+   - **Production:** A sidecar container (e.g., Filebeat/Fluentd) would ship these logs to **Elasticsearch/Kibana** or **CloudWatch Logs** for centralized analysis.
+3. **Data Quality:**
+   - **Volume Checks:** An alert is triggered if the Gold layer row count deviates by >20% compared to the moving average of the last 7 days.
+   - **Schema Validation:** Using libraries like *Great Expectations* to ensure no null values in critical columns (IDs, Country) during the Silver transformation.
+
+------
+
+## 📂 Project Structure
+
+```tex
+.
+├── data/                 # Generated locally when running with volumes
+├── tests/
+│   └── test_pipeline.py  # Unit tests
+├── Dockerfile            # Container configuration
+├── main.py               # ETL Pipeline code
+├── README.md             # Documentation
+└── requirements.txt      # Python dependencies
+```
